@@ -1,17 +1,18 @@
 import pandas as pd
 from datetime import datetime, timedelta
-import json
-import csv
+#import json
+#import csv
 
 
 class assessor:
     def __init__(self, codigo_assessor):
         self.codigo_assessor = codigo_assessor
         self.carteira_clientes = []
-    def carregar_planilhas(self):
-        pass 
+    # Carteira completa de clientes
     def carteira_cliente(self,codigo_xp):   
         self.carteira_clientes.append(codigo_xp)
+
+    # Função para exportar carteira completa
     def export_carteira(self):
         df = pd.DataFrame()
         #df['Assessor'] = self.codigo_assessor
@@ -21,13 +22,51 @@ class assessor:
 
         print("DataFrame exportado para 'clientes_relacionados.xlsx'.")
         #exportar = {f'Assessor {self.codigo_assessor}':{f'Carteira de clientes {self.carteira_cliente}'}}
+    
 
-        #Salvando o resultado em um arquivo JSON
-        """with open('carteira{codigo_assessor}.json', 'w') as file:
-            json.dump(exportar, file, indent=4)"""
-        pass
-    def ranking_carteira(self):
-        pass
+    def rankear_oportunidades(self, df_produtos):
+        hoje = datetime.now().date()
+
+        # Filtra as oportunidades de acordo com as condições especificadas
+        oportunidades_vencimento = df_produtos[
+            (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
+            (df_produtos['data_de_vencimento'] == hoje) &
+            (df_produtos['net'] > 0)  # Filtra valores de net maiores que 0
+        ].sort_values(by='net', ascending=False)  # Ordena pelo valor de net
+
+        oportunidades_saldo = df_produtos[
+            (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
+            (df_produtos['sub_produto'] == 'Saldo em Conta') &
+            (df_produtos['net'] > 0)  # Filtra valores de net maiores que 0
+        ].sort_values(by='net', ascending=False)  # Ordena pelo valor de net
+
+        # Junta as duas listas, colocando vencimento na frente
+        todas_oportunidades = pd.concat([oportunidades_vencimento, oportunidades_saldo])
+
+        # Define o número de oportunidades com base no código do assessor
+        if self.codigo_assessor == 24851:
+            num_oportunidades = 15
+        elif self.codigo_assessor == "GERAL":
+            num_oportunidades = 125
+        else:
+            num_oportunidades = 25
+
+        melhores_oportunidades = todas_oportunidades.head(num_oportunidades)
+
+        # Prepara o DataFrame de saída
+        df_saida = pd.DataFrame({
+            'Codigo Assessor': [self.codigo_assessor] * len(melhores_oportunidades),
+            'Codigo Cliente': melhores_oportunidades['codigo_cliente_xp'].tolist()
+        })
+
+        # Exportando para .xlsx
+        nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'
+        df_saida.to_excel(nome_arquivo, index=False)
+        print(f"Oportunidades exportadas para {nome_arquivo}")
+
+        return melhores_oportunidades['codigo_cliente_xp'].tolist()
+        #return melhores_oportunidades['codigo_cliente_xp'].tolist()
+
         
 
 print("Gerando assessores")
@@ -45,8 +84,9 @@ df_conexao = pd.read_excel('clientes_conexao.xlsx')
 df_produtos = pd.read_excel('clientes_conexao_produtos.xlsx')
 
 
+
+
 # Distribuição nas carteiras
-#id_clientes = df_conexao["codigo_cliente_xp"]
 
 linhas = 0
 #verifica se existe a coluna de codigos xp na planilha e conta quantas linhas tem
@@ -57,11 +97,12 @@ if 'codigo_cliente_xp' in df_conexao.columns:
 else:
     print("A coluna 'codigo_cliente_xp' não foi encontrada no DataFrame.")
 
-print(f"Linhas = {linhas}")
-i = 0
+#print(f"Linhas = {linhas}")
+
 
 # Varrer planilha para formar carteira do assessor
 print("Chamando loop")
+i = 0
 
 while i <= linhas:
     try:
@@ -73,12 +114,7 @@ while i <= linhas:
         codigo_assessor_int = int(codigo_assessor)
         #Soma 1 no indice
         i+=1
-        #print(f"Codigo XP do Cliente {codigo_xp}")
-        #print (type(codigo_xp))
-
-        #print(f"Codigo do assessor {codigo_assessor}")
-
-        #print (type(codigo_assessor_int))
+        
 
         #Distribui os clientes em seus assessores
         match codigo_assessor_int:
@@ -108,47 +144,29 @@ while i <= linhas:
         break
 
 
-assessor1.export_carteira()
-assessor2.export_carteira()
-assessor3.export_carteira()
-assessor4.export_carteira()
-assessor5.export_carteira()
-assessorGeral.export_carteira()
 
-"""
-print(f"Carteira assessor 1 {assessor1.carteira_clientes}")
-print(f"Carteira assessor 2 {assessor2.carteira_clientes}")
-print(f"Carteira assessor 3 {assessor3.carteira_clientes}")
-print(f"Carteira assessor 4 {assessor4.carteira_clientes}")
-print(f"Carteira assessor 5 {assessor5.carteira_clientes}")
+# Rankeando e exportando oportunidades
 
-
-"""
+print("Exportando ranking dos assessores")
+assessor1.rankear_oportunidades(df_produtos)
+assessor2.rankear_oportunidades(df_produtos)
+assessor3.rankear_oportunidades(df_produtos)
+assessor4.rankear_oportunidades(df_produtos)
+assessor5.rankear_oportunidades(df_produtos)
+assessorGeral.rankear_oportunidades(df_produtos)
 
 
 
+# Opção de exportar a carteira inteira
+
+#assessor1.export_carteira()
+#assessor2.export_carteira()
+#assessor3.export_carteira()
+#assessor4.export_carteira()
+#assessor5.export_carteira()
+#assessorGeral.export_carteira()
 
 
-# ordenar coluna por ordem crescente de assessor -> Dica vitor
 
 
 
-# Filtrando vencimentos por data
-data_atual = datetime.now()
-limite_data = data_atual #+ timedelta(days=3)
-
-# Filtrando registros para duas condições:
-
-#  registros com sub_produto "Saldo em Conta" e net maior que 0
-condicao_data_vencimento = (
-    (df_produtos['data_de_vencimento'].notna()) & 
-    (df_produtos['data_de_vencimento'] >= data_atual) &
-    (df_produtos['data_de_vencimento'] <= limite_data)
-)
-condicao_saldo_em_conta = (df_produtos['sub_produto'] == 'Saldo em Conta') & (df_produtos['net'] > 0)
-
-df_produtos_filtrado = df_produtos[condicao_data_vencimento | condicao_saldo_em_conta]
-
-
-# Junção dos dataframes
-df_juncao = pd.merge(df_conexao, df_produtos_filtrado, on='codigo_cliente_xp')
