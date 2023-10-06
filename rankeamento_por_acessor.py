@@ -1,8 +1,8 @@
 import pandas as pd
 from datetime import datetime, timedelta
+import enviar_zoho as zoho
 #import json
 #import csv
-
 
 class assessor:
     def __init__(self, codigo_assessor):
@@ -31,7 +31,7 @@ class assessor:
         oportunidades_vencimento = df_produtos[
             (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
             (df_produtos['data_de_vencimento'] == hoje) &
-            (df_produtos['net'] > 0)  # Filtra valores de net maiores que 0
+            (df_produtos['net'] > 0)   # Filtra valores de net maiores que 0
         ].sort_values(by='net', ascending=False)  # Ordena pelo valor de net
 
         oportunidades_saldo = df_produtos[
@@ -63,10 +63,17 @@ class assessor:
         nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'
         df_saida.to_excel(nome_arquivo, index=False)
         print(f"Oportunidades exportadas para {nome_arquivo}")
-
-        return melhores_oportunidades['codigo_cliente_xp'].tolist()
+        print("Encaminahndo webhook")
+        if codigo_assessor != "GERAL": # Geral precisamos implementar outro processo randomico
+            zoho.webhook(self.codigo_assessor,melhores_oportunidades['codigo_cliente_xp'].tolist())
         #return melhores_oportunidades['codigo_cliente_xp'].tolist()
-
+        #return melhores_oportunidades['codigo_cliente_xp'].tolist()
+        
+    
+        """ def to_zoho(self):
+                print("Entrando to_zoho")
+                zoho.webhook(self.codigo_assessor,self.rankear_oportunidades())
+        """
         
 
 print("Gerando assessores")
@@ -156,7 +163,7 @@ assessor5.rankear_oportunidades(df_produtos)
 assessorGeral.rankear_oportunidades(df_produtos)
 
 
-
+#assessor1.to_zoho()
 # Opção de exportar a carteira inteira
 
 #assessor1.export_carteira()
