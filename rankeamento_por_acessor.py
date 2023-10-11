@@ -1,6 +1,7 @@
 import pandas as pd
 from datetime import datetime, timedelta
 import enviar_zoho as zoho
+import sqlite3
 #import json
 #import csv
 
@@ -26,6 +27,8 @@ class assessor:
 
     def rankear_oportunidades(self, df_produtos):
         hoje = datetime.now().date()
+       # adicionar_dias = timedelta(days = 1)
+       # hoje = hoje + adicionar_dias
 
         # Filtra as oportunidades de acordo com as condições especificadas
         oportunidades_vencimento = df_produtos[
@@ -64,8 +67,8 @@ class assessor:
         df_saida.to_excel(nome_arquivo, index=False)
         print(f"Oportunidades exportadas para {nome_arquivo}")
         print("Encaminahndo webhook")
-        if codigo_assessor != "GERAL": # Geral precisamos implementar outro processo randomico
-            zoho.webhook(self.codigo_assessor,melhores_oportunidades['codigo_cliente_xp'].tolist())
+        """if codigo_assessor != "GERAL": # Geral precisamos implementar outro processo randomico
+            zoho.webhook(self.codigo_assessor,melhores_oportunidades['codigo_cliente_xp'].tolist())"""
         #return melhores_oportunidades['codigo_cliente_xp'].tolist()
         #return melhores_oportunidades['codigo_cliente_xp'].tolist()
         
@@ -90,8 +93,14 @@ print("Carregando dataframes")
 df_conexao = pd.read_excel('clientes_conexao.xlsx')
 df_produtos = pd.read_excel('clientes_conexao_produtos.xlsx')
 
-
-
+print("Criando banco de dados")
+# Conexão com o sqlite
+conn = sqlite3.connect('clientes.db')
+#transforma o dataframe em tabela SQL
+df_conexao.to_sql('Clientes', conn, if_exists='replace')
+df_produtos.to_sql('Produtos', conn, if_exists='replace')
+# Fecha a conexão 
+conn.close()
 
 # Distribuição nas carteiras
 
