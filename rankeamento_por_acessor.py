@@ -93,14 +93,14 @@ print("Carregando dataframes")
 df_conexao = pd.read_excel('clientes_conexao.xlsx')
 df_produtos = pd.read_excel('clientes_conexao_produtos.xlsx')
 
-print("Criando banco de dados")
+"""print("Criando banco de dados")
 # Conexão com o sqlite
 conn = sqlite3.connect('clientes.db')
 #transforma o dataframe em tabela SQL
 df_conexao.to_sql('Clientes', conn, if_exists='replace')
 df_produtos.to_sql('Produtos', conn, if_exists='replace')
 # Fecha a conexão 
-conn.close()
+conn.close()"""
 
 # Distribuição nas carteiras
 

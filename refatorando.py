@@ -1,4 +1,8 @@
 # Como fazer o DF virar uma tabela ?
+
+# Talvez seja melhor separar as funções de atualizar BD em outro arquivo. 
+# Apenas gerar os assessores e voltar a utilizar as principais funções dentro deles
+
 import pandas as pd
 from datetime import datetime, timedelta
 import enviar_zoho as zoho
@@ -28,26 +32,30 @@ class assessor:
     
 
     def rankear_oportunidades(self):
+        print(f"Entrou rank oportunidades {self.codigo_assessor}")
         hoje = datetime.now().date()
        # adicionar_dias = timedelta(days = 1)
        # hoje = hoje + adicionar_dias
         # Conectar ao banco de dados SQLite
-        conn = sqlite3.connect('seu_banco_de_dados.db')
+        conn = sqlite3.connect('clientes.db')
 
-        # Consulta SQL para buscar os dados da tabela 'produtos' (substitua 'produtos' pelo nome da tabela correta)
-        query = f'''
-            SELECT *
-            FROM produtos
-            WHERE codigo_cliente_xp IN {tuple(self.carteira_clientes)}
-            AND data_de_vencimento = "{hoje}"
-            AND net > 0
-            ORDER BY net DESC
-        '''
+      # Nome do arquivo do banco de dados SQLite
+        db_file = 'clientes.db'
 
-        # Ler os dados da tabela 'produtos' e criar um DataFrame
+        # Nome da tabela que deseja registrar como um DataFrame
+        table_name = 'Produtos'
+
+        # Conectar ao banco de dados
+        conn = sqlite3.connect(db_file)
+
+        # Consulta SQL para selecionar todos os dados da tabela
+        query = f'SELECT * FROM {table_name}'
+
+        # Use o método read_sql_query do Pandas para criar um DataFrame a partir da consulta
         df_produtos = pd.read_sql_query(query, conn)
-
         conn.close()
+        #print(df_produtos.head())
+
 
         # Filtra as oportunidades de acordo com as condições especificadas
         oportunidades_vencimento = df_produtos[
@@ -63,6 +71,8 @@ class assessor:
             (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
             (df_produtos['sub_produto'] == 'Saldo em Conta') &
             (df_produtos['net'] > 0)  # Filtra valores de net maiores que 0
+            # net_em_m > 50 mil
+            # data ultimo atendimento >15 dias para investor
         ].sort_values(by='net', ascending=False)  # Ordena pelo valor de net
 
         # Junta as duas listas, colocando vencimento na frente
@@ -101,7 +111,6 @@ class assessor:
         """
 
 
-
 # Criar banco de dados
 # Conectar ou criar o banco de dados SQLite
 def bd(df_conexao, df_produtos):
@@ -129,15 +138,29 @@ def atualizar_banco_de_dados():
 
 
 
-
-
-
 # verificar se existem carteiras dos assessores. Caso não então criar e distribuir
-def atualizar_carteiras():
+def atualizar_carteiras(assessores):
     # Distribuição nas carteiras
-
+    assessores = assessores
     linhas = 0
     #verifica se existe a coluna de codigos xp na planilha e conta quantas linhas tem
+    conn = sqlite3.connect('clientes.db')
+
+    # Nome do arquivo do banco de dados SQLite
+    db_file = 'clientes.db'
+
+    # Nome da tabela que deseja registrar como um DataFrame
+    table_name = 'Clientes'
+
+    # Conectar ao banco de dados
+    conn = sqlite3.connect(db_file)
+
+    # Consulta SQL para selecionar todos os dados da tabela
+    query = f'SELECT * FROM {table_name}'
+
+    # Use o método read_sql_query do Pandas para criar um DataFrame a partir da consulta
+    df_conexao = pd.read_sql_query(query, conn)
+    conn.close()
     if 'codigo_cliente_xp' in df_conexao.columns:
         # Contagem das linhas na coluna 'codigo_cliente_xp'
         linhas = df_conexao['codigo_cliente_xp'].count()
@@ -191,29 +214,22 @@ def atualizar_carteiras():
             print("Fim das linhas")
             break
 
-def criar_assessores():
-    db_file = 'clientes.db'
-    tabela = 'assessores'
+def criar_assessores(): # versão antiga, preciso alterar para criação pelo BD
+    print("Gerando assessores")
+    assessor1 = assessor(73770)
+    assessor2 = assessor(30927)
+    assessor3 = assessor (24851)
+    assessor4 = assessor (41849)
+    assessor5 = assessor(29087)
+    assessorGeral = assessor("GERAL") #aqueles que não tem carteira fixa
+    
+    assessores = [assessor1,assessor2,assessor3,assessor4,assessor5,assessorGeral]
+    atualizar_carteiras(assessores)
+    #return assessor1.codigo_assessor,assessor2.codigo_assessor
+    return assessor1,assessor2,assessor3,assessor4,assessor5,assessorGeral
+    
 
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-
-    # Consulta SQL para buscar os dados da tabela
-    cursor.execute(f'SELECT * FROM {tabela}')
-    data = cursor.fetchall()
-
-    assessores = []
-
-    for row in data:
-        assessor = assessor(*row)  # Cria um objeto da classe "Assessor" com base nos dados do registro
-        assessores.append(assessor)
-
-    conn.close()
-
-    return assessores
-
-
-def assessores():
+def assessores(): # apenas registra no BD
     # Nome do arquivo do banco de dados SQLite
     db_file = 'clientes.db'
     
@@ -290,8 +306,8 @@ def consultar_assessores():
 
 # Menu principal
 def main():
-   
     # Menu 
+    print(criar_assessores())
     while True:
         
         menu = input ("1 - Atualizar banco de dados\n2 - Atualizar carteiras\n3 - Gerar lista de oportunidades\n4 - Salvar assessores\n5 - Listar assessores\n0 - SAIR\n")
@@ -299,9 +315,14 @@ def main():
             case "1":
                 atualizar_banco_de_dados()
             case "2":
-                atualizar_carteiras() # Adaptar para pegar dados do banco de dados
+                atualizar_carteiras(criar_assessores) # Adaptar para pegar dados do banco de dados
             case "3":
-                pass
+                # Criar a tupla de assessores
+                assessores = criar_assessores()
+
+                # Chamar o método rankear_oportunidades em todos os objetos da tupla
+                for assessor in assessores:
+                    assessor.rankear_oportunidades()
             case "4":
                 assessores()
             case "5":
@@ -332,5 +353,10 @@ else:
         print("Sem planilhas para carregar")
 
     
+
+
+
+
+
 
 main() # Invocada ao inicio do codigo

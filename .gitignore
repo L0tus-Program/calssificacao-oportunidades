@@ -1,1 +1,9 @@
-.xlsx
+/.xlsx
+planilhas analytcs/
+refatorando/
+
+refatorando/.xlsx
+*.xlsx
+assessores.xlsx
+*.db
+db 
