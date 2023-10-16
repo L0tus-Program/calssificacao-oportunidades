@@ -1,9 +1,5 @@
-/.xlsx
 planilhas analytcs/
 
 
-refatorando/.xlsx
 *.xlsx
-assessores.xlsx
-*.db
-db 
+*xlsx

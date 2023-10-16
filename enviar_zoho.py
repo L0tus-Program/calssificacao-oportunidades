@@ -3,31 +3,6 @@ import json
 
 # envia um webhook
 
-"""def webhook(assessor,codigo_xp):
-    i = 0
-    for i in codigo_xp:
-        print(codigo_xp[i])
-
-
-    link = "https://flow.zoho.com/815771232/flow/webhook/incoming?zapikey=1001.8fb63478c8d5eaced825a2e92b4349c0.335ce3ce70e63ff554eec611594ccc74&isdebug=true"
-
-    dicionario = {
-
-        "assessor": f"{assessor}",
-        "codigo_XP": f"{codigo_xp}",
-
-    }
-
-    dicionario_ajustado = json.dumps(dicionario)
-    print(dicionario_ajustado)
-    #requests.post(link, data=dicionario_ajustado)
-
-
-
-codigo_xp = [123,1234,4567,23413,123523]
-
-webhook("O cara",codigo_xp)"""
-
 
 def webhook(assessor, codigo_xp):
     print("Entrando webhook")
