@@ -4,6 +4,22 @@ import enviar_zoho as zoho
 import sqlite3
 import os # Verificar se o BD existe na pasta de arquivos
 import db
+import ast
+"""class geral:
+    def __init__(self):
+        self.lista_geral = []
+        self.codigo_assessor = "GERAL"
+        
+    def add_lista(self,lista):
+        self.lista_geral.append(lista)
+    def export(self):
+        df_saida = pd.DataFrame({
+            'Codigo Assessor': [self.codigo_assessor] * len(self.lista_geral),
+            'Codigo Cliente': self.lista_geral['codigo_cliente_xp'].tolist()
+        })
+        nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'    
+        df_saida.to_excel(nome_arquivo, index=False)"""
+
 
 class Assessor:
     def __init__(self, codigo_assessor):
@@ -26,53 +42,62 @@ class Assessor:
     
     def carregar_carteira(self):
         conn = sqlite3.connect('clientes.db')
-        query = f'SELECT carteira FROM Assessores WHERE codigo_assessor = {self.codigo_assessor}'
-        df = pd.read_sql_query(query, conn)
+        
+        
+        consulta = f"SELECT carteira FROM Assessores WHERE codigo_assessor = '{self.codigo_assessor}'"
 
-        if not df.empty:
-            # Obtém a coluna 'carteira' do DataFrame e a primeira entrada (supondo que haja apenas uma)
-            carteira = df['carteira'].iloc[0]
-
-            if carteira:
-                self.carteira_clientes = carteira.split(',')
+        # Executar a consulta e recuperar a carteira
+        cursor = conn.cursor()
+        cursor.execute(consulta)
+        resultado = cursor.fetchone()
+        self.carteira_clientes = resultado[0]
+        self.carteira_clientes = ast.literal_eval(self.carteira_clientes)
+        conn.close()
+        
        
     def rankear_oportunidades(self):
         print(f"Entrou rank oportunidades {self.codigo_assessor}")
-        hoje = datetime.now().date()
+        
        # adicionar_dias = timedelta(days = 1)
        # hoje = hoje + adicionar_dias
         # Conectar ao banco de dados SQLite
         conn = sqlite3.connect('clientes.db')
+
         self.carregar_carteira()
       # Nome do arquivo do banco de dados SQLite
         db_file = 'clientes.db'
 
         # Nome da tabela que deseja registrar como um DataFrame
-        table_name = 'Produtos'
+        table_name = "Produtos"
 
         # Conectar ao banco de dados
         conn = sqlite3.connect(db_file)
 
         # Consulta SQL para selecionar todos os dados da tabela
         query = f'SELECT * FROM {table_name}'
-
+        df_produtos = pd.read_sql_query(query,conn)
+        df_clientes = pd.read_sql_query('SELECT * FROM Clientes',conn)
         # Use o método read_sql_query do Pandas para criar um DataFrame a partir da consulta
-        df_produtos = pd.read_sql_query(query, conn)
-        #print(f"Data frame produtos = \n{df_produtos.head()}")
+        produtos = pd.read_sql_query(query, conn)
+
+        atendimentos = pd.read_sql_query('SELECT * FROM Atendimentos',conn)
+        atendimentos = atendimentos.sort_values(by='data_atendimento', ascending=False)
+        atendimentos = atendimentos.drop_duplicates(subset='codigo_cliente_xp', keep='first')
+        atendimentos = atendimentos.reset_index(drop=True)
+       
         conn.close()
-        #print(df_produtos.head())
-
-
-        # Filtra as oportunidades de acordo com as condições especificadas
-        self.carteira_clientes = [int(codigo) for codigo in self.carteira_clientes] # Convertendo codigos da carteira para INT
+        
+        hoje = datetime.now().date()
+        print(hoje)
+        # Agora você pode aplicar as condições necessárias na junção para filtrar as oportunidades
         oportunidades_vencimento = df_produtos[
-            ((df_produtos['codigo_cliente_xp']).isin(self.carteira_clientes))&
+            (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
             (df_produtos['data_de_vencimento'] == hoje) &
-            (df_produtos['net'] > 0)  #Filtra valores de net maiores que 0
-            # net_em_m
-            # data ultimo atendimento (relatorio DataAtendimento detalhado) acima de 15 dias passados para INVESTOR (hunter?)
-            # 
+            (df_produtos['net'] > 0)   # Filtra valores de net maiores que 0
+            #(df_joined['net_em_m'] > 50000)   # Filtra net_em_m maior que 50000
+            #(df_joined['data_ultimo_atendimento'] > (hoje - timedelta(days=15)))  # Filtra data de último atendimento acima de 15 dias
         ].sort_values(by='net', ascending=False)  # Ordena pelo valor de net
+        
         #print(f"Testando dataframe : \n {df_produtos['codigo_cliente_xp']}")
         oportunidades_saldo = df_produtos[
             (df_produtos['codigo_cliente_xp'].isin(self.carteira_clientes)) &
@@ -84,19 +109,21 @@ class Assessor:
 
         # Junta as duas listas, colocando vencimento na frente
         todas_oportunidades = pd.concat([oportunidades_vencimento, oportunidades_saldo])
-        #print(f"Oportunidades vencimento = {oportunidades_vencimento}")
-       # print(f"Oportunidades saldo = {oportunidades_saldo}")
-       # print(f"Todas as oportunidades = {todas_oportunidades}")
+        print(f"Oportunidades vencimento = {oportunidades_vencimento}")
+        print(f"Oportunidades saldo = {oportunidades_saldo}")
+       
 
         # Define o número de oportunidades com base no código do assessor
-        if self.codigo_assessor == 24851:
+        if self.codigo_assessor == "24851":
             num_oportunidades = 15
-        elif self.codigo_assessor == "GERAL":
+        elif self.codigo_assessor == 'GERAL':
             num_oportunidades = 125
         else:
             num_oportunidades = 25
-
+        # Remove oportunidades duplicadas 
+        todas_oportunidades = todas_oportunidades.drop_duplicates(subset=["codigo_cliente_xp"], keep='first')
         melhores_oportunidades = todas_oportunidades.head(num_oportunidades)
+        print(todas_oportunidades)
 
         # Prepara o DataFrame de saída
         df_saida = pd.DataFrame({
@@ -106,20 +133,18 @@ class Assessor:
         print (melhores_oportunidades['codigo_cliente_xp'])
         #print(f"Carteira = {self.carteira_clientes}")
         # Exportando para .xlsx
-        nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'
-        df_saida.to_excel(nome_arquivo, index=False)
-        print(f"Oportunidades exportadas para {nome_arquivo}")
-        print("Encaminahndo webhook")
-        if self.codigo_assessor != "GERAL": # Geral precisamos implementar outro processo randomico
-            zoho.webhook(self.codigo_assessor,melhores_oportunidades['codigo_cliente_xp'].tolist())
-        #return melhores_oportunidades['codigo_cliente_xp'].tolist()
-        #return melhores_oportunidades['codigo_cliente_xp'].tolist()
+        geral = [13136,72738,26904,67114]
+        if self.codigo_assessor not in geral :
+            nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'
+            df_saida.to_excel(nome_arquivo, index=False)
+            print(f"Oportunidades exportadas para {nome_arquivo}")
+            
         
-    
-        """ def to_zoho(self):
-                print("Entrando to_zoho")
-                zoho.webhook(self.codigo_assessor,self.rankear_oportunidades())
-        """
+        else:
+            print("Assessor geral")
+            
+            
+        
         return df_saida  # Retorne df_saida em vez da lista
 
 
@@ -143,8 +168,10 @@ objetos = [Assessor(assessor) for assessor in codigo_assessores]
 for assessor in objetos:
     print(f"Objeto Assessor criado: Código Assessor {assessor.codigo_assessor}")
 
+geral = [13136,72738,26904,67114]
 
 def carteiras(*assessores):
+    print("Entrou CARTEIRAS")
     conn = sqlite3.connect('clientes.db')
     cursor = conn.cursor()
 
@@ -161,13 +188,31 @@ def carteiras(*assessores):
             carteiras_assessores[codigo_assessor] = []
 
         # Adicione o cliente à lista de clientes do assessor
+        """    if (codigo_assessor == "13136") or (codigo_assessor == "72738") or (codigo_assessor == "26904"):
+            print("Entrou assessor geral")
+            codigo_assessor_temp = 'GERAL'
+            carteiras_assessores['GERAL'].append(codigo_cliente)
+        else:"""
         carteiras_assessores[codigo_assessor].append(codigo_cliente)
+        #carteiras_assessores[codigo_assessor].append(codigo_cliente)
 
+        
     # Atualize a coluna "carteira" na tabela "Assessores" com as carteiras calculadas
     for codigo_assessor, carteira in carteiras_assessores.items():
+        print(f"Assessor {codigo_assessor}\nCarteira = {carteira}\n Carteiras assessores = {carteiras_assessores}")
         carteira_str = ','.join(map(str, carteira))
-        query = f'UPDATE Assessores SET carteira = ? WHERE codigo_assessor = ?'
-        cursor.execute(query, (carteira_str, codigo_assessor))
+        query = "UPDATE Assessores SET carteira = ? WHERE codigo_assessor = ?"
+
+        if codigo_assessor in carteiras_assessores:
+            """print(f"Entrou geral")
+            if codigo_assessor == 'GERAL':
+                query = "UPDATE Assessores SET carteira = ? WHERE codigo_assessor = 'GERAL'"
+                cursor.execute(query, (carteira_str))
+            else:"""
+            query = "UPDATE Assessores SET carteira = ? WHERE codigo_assessor = ?"
+            cursor.execute(query, (carteira_str, codigo_assessor))
+        else:
+            cursor.execute(query, (carteira_str, codigo_assessor))
     
     conn.commit()
     # Feche a conexão com o banco de dados
@@ -181,7 +226,7 @@ def carteiras(*assessores):
 def consolidar_oportunidades(*assessores):
     # Conectar ao banco de dados SQLite
     conn = sqlite3.connect('clientes.db')
-
+    
     # Nome do arquivo do banco de dados SQLite
     db_file = 'clientes.db'
 
@@ -195,14 +240,24 @@ def consolidar_oportunidades(*assessores):
     query = f'SELECT * FROM {table_name}'
 
     # Use o método read_sql_query do Pandas para criar um DataFrame a partir da consulta
-    df_produtos = pd.read_sql_query(query, conn)
+    #df_produtos = pd.read_sql_query(query, conn)
     conn.close()
     dfs_oportunidades = []
+    dfs_gerais = []
     for assessor in assessores:
-        dfs_oportunidades.append(assessor.rankear_oportunidades())
-
-   
-    df_consolidado = pd.concat(dfs_oportunidades, axis=0)
+        if assessor.codigo_assessor in geral:
+            dfs_gerais.append(assessor.rankear_oportunidades())
+        else:
+            dfs_oportunidades.append(assessor.rankear_oportunidades())
+        
+    
+    """gerais = assessores in geral 
+    print(f'Gerais = {gerais}')"""
+    df_gerais = pd.concat(dfs_gerais, axis=0)
+    df_gerais.to_excel('gerais.xlsx', index=False)
+    print("Oportunidades gerais exportadas para 'oportunidades_gerais.xlsx'.")
+    #dfs_oportunidades.append(dfs_gerais)
+    df_consolidado = pd.concat(dfs_oportunidades + dfs_gerais, axis=0)
 
     # Exportando para um único arquivo Excel
     df_consolidado.to_excel('oportunidades_consolidadas.xlsx', index=False)
@@ -212,21 +267,24 @@ def consolidar_oportunidades(*assessores):
 
 
 def main():
-    os.system("cls")
+    #os.system("cls")
     while True:
         print("Entrando main menu")
-        menu = input("1 - Atualizar banco de dados\n3 - Gerar lista de oportunidades\n5 - Listar assessores\n0 - SAIR\n")
+        menu = input("1 - Atualizar banco de dados\n2 - Ajuste carteira\n3 - Gerar lista de oportunidades\n5 - Listar assessores\n0 - SAIR\n")
         match menu:
             case "1":
                 # Regrava dados com base nas planilhas
                 db.update()
                 carteiras(*objetos)
                
-            
+            case "2":
+                for assessor in objetos:
+                    print(f"{assessor.carteira_clientes}")
+                #carteiras(*objetos)
             case "3":
                 # invoca a função rankear_oportunidades em cada assessor
-                for assessor in objetos:
-                    assessor.rankear_oportunidades()
+                """for assessor in objetos:
+                    assessor.rankear_oportunidades()"""
                 consolidar_oportunidades(*objetos)
                 
             case "5":

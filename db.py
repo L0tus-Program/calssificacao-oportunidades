@@ -4,11 +4,12 @@ import sqlite3
 import os # Verificar se o BD existe na pasta de arquivos
 
 
-def bd(df_conexao, df_produtos, df_assessores):
+def bd(df_conexao, df_produtos, df_assessores, df_atendimentos):
     print("Entrando na função bd")
     df_conexao = df_conexao
     df_produtos = df_produtos
     df_assessores = df_assessores
+    df_atendimentos = df_atendimentos
     print("Criando banco de dados")
     # Conexão com o sqlite
     conn = sqlite3.connect('clientes.db')
@@ -16,6 +17,7 @@ def bd(df_conexao, df_produtos, df_assessores):
     df_conexao.to_sql('Clientes', conn, if_exists='replace')
     df_produtos.to_sql('Produtos', conn, if_exists='replace')
     df_assessores.to_sql('Assessores', conn, if_exists='replace')
+    df_atendimentos.to_sql('Atendimentos', conn, if_exists='replace')
     conn.commit()
     conn.close()
 
@@ -36,7 +38,8 @@ def verifica():
             df_conexao = pd.read_excel('clientes_conexao.xlsx')
             df_produtos = pd.read_excel('clientes_conexao_produtos.xlsx')
             df_assessores = pd.read_excel('assessores.xlsx')
-            bd(df_conexao,df_produtos,df_assessores)
+            df_atendimentos = pd.read_excel('atendimentosDados.xlsx')
+            bd(df_conexao,df_produtos,df_assessores,df_atendimentos)
            # assessores()
         except:
             print("Sem planilhas para carregar")
@@ -49,7 +52,8 @@ def update():
     df_conexao = pd.read_excel('clientes_conexao.xlsx')
     df_produtos = pd.read_excel('clientes_conexao_produtos.xlsx')
     df_assessores = pd.read_excel('assessores.xlsx')
-    bd(df_conexao,df_produtos,df_assessores)
+    df_atendimentos = pd.read_excel('atendimentosDados.xlsx')
+    bd(df_conexao,df_produtos,df_assessores,df_atendimentos)
     
 
 

@@ -1,5 +1,15 @@
 planilhas analytcs/
-
-
+*.db
+*db
 *.xlsx
 *xlsx
+*rar
+*zip
+teste.py
+testes.py
+versao_mari.py
+old.py
+denovo.py
+rankeamento_por_acessor.py
+refatorando.py
+clientes.db
