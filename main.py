@@ -2,23 +2,16 @@ import pandas as pd
 from datetime import datetime, timedelta
 import enviar_zoho as zoho
 import sqlite3
+import requests
 import os # Verificar se o BD existe na pasta de arquivos
 import db
 import ast
-"""class geral:
-    def __init__(self):
-        self.lista_geral = []
-        self.codigo_assessor = "GERAL"
-        
-    def add_lista(self,lista):
-        self.lista_geral.append(lista)
-    def export(self):
-        df_saida = pd.DataFrame({
-            'Codigo Assessor': [self.codigo_assessor] * len(self.lista_geral),
-            'Codigo Cliente': self.lista_geral['codigo_cliente_xp'].tolist()
-        })
-        nome_arquivo = f'oportunidades_assessor_{self.codigo_assessor}.xlsx'    
-        df_saida.to_excel(nome_arquivo, index=False)"""
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+import json
+#import email.message
 
 
 class Assessor:
@@ -199,7 +192,7 @@ def carteiras(*assessores):
         
     # Atualize a coluna "carteira" na tabela "Assessores" com as carteiras calculadas
     for codigo_assessor, carteira in carteiras_assessores.items():
-        print(f"Assessor {codigo_assessor}\nCarteira = {carteira}\n Carteiras assessores = {carteiras_assessores}")
+       # print(f"Assessor {codigo_assessor}\nCarteira = {carteira}\n Carteiras assessores = {carteiras_assessores}")
         carteira_str = ','.join(map(str, carteira))
         query = "UPDATE Assessores SET carteira = ? WHERE codigo_assessor = ?"
 
@@ -254,7 +247,7 @@ def consolidar_oportunidades(*assessores):
     """gerais = assessores in geral 
     print(f'Gerais = {gerais}')"""
     df_gerais = pd.concat(dfs_gerais, axis=0)
-    df_gerais.to_excel('gerais.xlsx', index=False)
+    df_gerais.to_excel('oportunidades_gerais.xlsx', index=False)
     print("Oportunidades gerais exportadas para 'oportunidades_gerais.xlsx'.")
     #dfs_oportunidades.append(dfs_gerais)
     df_consolidado = pd.concat(dfs_oportunidades + dfs_gerais, axis=0)
@@ -263,14 +256,50 @@ def consolidar_oportunidades(*assessores):
     df_consolidado.to_excel('oportunidades_consolidadas.xlsx', index=False)
     print("Oportunidades consolidadas exportadas para 'oportunidades_consolidadas.xlsx'.")
 
+def mail():
+    with open("email.json", encoding='utf-8') as meu_json:
+        dados_email = json.load(meu_json)
+   # print (dados_email)
+    #print(dados_email)
+    print("Entrando na função mail")
+    hoje = datetime.now().date()
+    # Dados de autenticação
+    username = dados_email['usuario']  # Substitua com seu endereço de e-mail
+    password = dados_email['senha']  # Substitua com sua senha de e-mail
+    emailDestino = "felipe.gomes@messeminvestimentos.com.br"  # Substitua com o e-mail do destinatário
+    assunto = "Relatório de oportunidades"
+    conteudo = f"Gerado em {hoje}"
 
+    # Crie o objeto MIMEMultipart
+    msg = MIMEMultipart()
+    msg['To'] = emailDestino
+    msg['From'] = username
+    msg['Subject'] = assunto
+
+    # Adicione o conteúdo do e-mail
+    msg.attach(MIMEText(conteudo, 'plain', 'utf-8'))
+
+    # Anexe o arquivo Excel
+    file_path = "oportunidades_consolidadas.xlsx"  # Substitua com o caminho para o arquivo Excel
+    with open(file_path, 'rb') as file:
+        attachment = MIMEApplication(file.read(), _subtype="xlsx")
+        attachment.add_header('content-disposition', 'attachment', filename="oportunidades_consolidades.xlsx")
+        msg.attach(attachment)
+
+    # Enviando o e-mail
+    with smtplib.SMTP("email-ssl.com.br", 587) as server:
+        server.starttls()
+        server.login(username, password)
+        server.sendmail(username, emailDestino, msg.as_string())
+
+    print("E-mail enviado com sucesso!")
 
 
 def main():
     #os.system("cls")
     while True:
         print("Entrando main menu")
-        menu = input("1 - Atualizar banco de dados\n2 - Ajuste carteira\n3 - Gerar lista de oportunidades\n5 - Listar assessores\n0 - SAIR\n")
+        menu = input("1 - Atualizar banco de dados\n2 - Ajuste carteira\n3 - Gerar lista de oportunidades\n4 - Enviar op consolidadas por e-mail\n5 - Listar assessores\n0 - SAIR\n")
         match menu:
             case "1":
                 # Regrava dados com base nas planilhas
@@ -286,6 +315,9 @@ def main():
                 """for assessor in objetos:
                     assessor.rankear_oportunidades()"""
                 consolidar_oportunidades(*objetos)
+
+            case "4":
+                mail()
                 
             case "5":
                 # Listar os códigos de assessor

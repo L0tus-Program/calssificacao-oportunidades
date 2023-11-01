@@ -59,3 +59,5 @@ def update():
 
 
 
+
+verifica()
